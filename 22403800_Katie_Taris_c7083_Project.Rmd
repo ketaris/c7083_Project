@@ -1,0 +1,364 @@
+---
+title: "22403800 c7083 Project"
+author: "Katie Taris"
+date: "2023-03-08"
+output:
+  pdf_document: default
+  html_document: default
+---
+# Bee Colonies in the USA
+GitHub Link:
+https://github.com/ketaris/c7083_Project
+
+## 00 Table of Contents
+01 Introduction
+
+02 Data visualisation #1
+
+03 Data visualisation #2
+
+04 Data visualisation #3
+
+05 Data visualisation #4
+
+06 Data visualisation #5
+
+07 Data visualisation #6
+
+08 Graph Critique 
+
+09 References
+
+10 Appendix
+
+
+## 01 Introduction
+The source of the data is: https://github.com/rfordatascience/tidytuesday/tree/master/data/2022/2022-01-11.
+The data is presented in two data sets named 'colony' and 'stressor'. The first dataset contains information of 
+colony numbers per state per quarter from the period 2015 to 2021. The stressor dataset contains
+information regarding the stressors put on colonies and percentage impact they have. 
+
+`colony.csv`
+10 variables as listed below. 
+
+| Variable|	Class	|Description |
+|-------|-----|-------|
+|year|	character	|year |
+|months	|character|	month |
+|state|	character	|State Name (note there is United States and Other States) |
+|colony_n	|integer|	Number of colonies |
+|colony_max|	integer|	Maximum colonies |
+|colony_lost	|integer|	Colonies lost |
+|colony_lost_pct|	integer|	Percent of total colonies lost |
+|colony_added	|integer|	Colonies added |
+|colony_reno|	integer|	Colonies renovated |
+|colony_reno_pct|	integer|	Percent of colonies renovated |
+
+`stressor.csv`
+5 variables as listed below. 
+
+| Variable|	Class|	Description |
+|-------|-----|-------|
+|year|	character|	Year |
+|months|	character|	Month range |
+|state|	character	|State Name (note there is United States and Other States) |
+|stressor	|character|	Stress type |
+|stress_pct |	double |Percent of colonies affected by stressors anytime during the quarter, colony can be affected by multiple stressors during same quarter.|
+
+```{r setup1, include = FALSE}
+setwd("C:/Users/vanil/OneDrive/Documents/RStudio")
+getwd()
+
+knitr::opts_chunk$set(fig.align = "left",
+                      warnings=FALSE, message = FALSE)
+
+## Install packages 
+if(!require("tidyverse")) install.packages("tidyverse")
+if(!require("treemap")) install.packages("treemap")
+if(!require("d3Tree")) install.packages("d3Tree")
+if(!require("devtools")) install.packages("devtools")
+install_github("timelyportfolio/d3treeR")
+if(!require("d3r")) install.packages("d3r")
+if(!require("ggplot2")) install.packages("ggplot2")
+if(!require("ggthemes")) install.packages("ggthemes")
+if(!require("sf")) install.packages("sf")
+if(!require("tmap")) install.packages("tmap")
+if(!require("magrittr")) install.packages("magrittr")
+if(!require("rgdal")) install.packages("rgdal")
+if(!require("usmap")) install.packages("usmap")
+if(!require("rnaturalearth")) devtools::install_github("ropensci/rnaturalearth")
+if(!require("shiny")) install.packages("shiny")
+if(!require("RColorBrewer")) install.packages("RColorBrewer")
+if(!require("ggrepel")) install.packages("ggrepel")
+
+## Libraries
+library(tidyverse)
+library(treemap)
+library(d3Tree)
+library(devtools)
+library(d3treeR)
+library(d3r)
+library(ggplot2)
+library(ggthemes)
+library(sf)
+library(tmap)
+library(magrittr)
+library(rgdal)
+library(rnaturalearth)
+library(usmap)
+library(shiny)
+library(RColorBrewer)
+library(ggrepel)
+
+## Download data from GitHub 
+colony <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-01-11/colony.csv')
+stressor <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-01-11/stressor.csv')
+
+```
+
+
+## 02 Data visualisation #1
+```{r DV1, echo = FALSE}
+knitr::opts_chunk$set(fig.align = "center",
+                      warnings=FALSE, message = FALSE)
+## Filter out "US" as a state
+colony_line <- filter(colony, state != "United States")
+## Data wrangling
+colony_line40 <- colony_line %>% group_by(year) %>% summarise(c_lost = mean(colony_lost, na.rm=TRUE), 
+                                                               c_added =mean(colony_added, na.rm=TRUE),
+                                                               c_reno = mean(colony_reno, na.rm = TRUE)
+)
+colony_line41 <- colony_line40 %>% pivot_longer(cols=c("c_lost", "c_added", "c_reno"),
+                                                names_to = "stat",
+                                                values_to = "value")
+## Prepare labels for graph
+col42 <- colony_line41 %>% 
+  mutate(label = if_else(year == max(year), as.character(stat), NA_character_))
+## Add legible labels
+col42[col42 == "c_added"] <- "Added"
+col42[col42 == "c_lost"] <- "Lost"
+col42[col42 == "c_reno"] <- "Renovated"
+
+## Create line graph using ggplot
+ggplot(data=col42, aes(x=year, y = value)) +
+  geom_line(aes(color = stat), linewidth = 1) +
+  geom_point() +
+  theme_light() +
+  labs(x = "Year",
+       y = "Mean Number of Bee Colonies",
+       caption = "Data source: USDA",
+       title = "Change in Bee Colonies by Year",
+       subtitle = "Mean American bee population changes shown by addition, loss and renovation") +
+  theme(plot.title = element_text(size = 18),
+        panel.background = element_rect(colour = "gold1", linewidth = 5),
+        legend.position = "none")   + 
+  scale_x_continuous(breaks = pretty(colony_line41$year, n =5)) +
+  scale_y_continuous(breaks = pretty(colony_line41$value, n = 5)) + 
+  scale_color_manual(values=c("gold1", "#fe9929", "black")) +
+  geom_label_repel(aes(label= label),
+                   nudge_x = 0.25,
+                   nudge_y = 1)
+
+
+```
+
+**Figure 1:** This line graph shows the rise and fall of the mean number of colonies added, renovated and lost over the 7-year period from 2015 to 2021. This graph is supposed to show overall trends and is not specific by state, but nonetheless some large trends can be gleaned, including a large reduction of addition and renovation to colonies and a large loss occurring in 2019. Some of the stressors that cause loss can be found in the next graph. The package ggrepel was used to place labels on the lines, instead of using a legend. 
+
+
+## 03 Data visualisation #2
+
+```{r DV2, echo = FALSE}
+## Remove NAs
+stressor_clean <- filter(stressor, stress_pct != "NA")
+## Data wrangling 
+stress_year <- stressor_clean %>% group_by(year, stressor) %>% summarise(avg_pct = mean(stress_pct))
+
+## Create bargraph with ggplot
+ggplot(stress_year, aes(x = reorder(stressor, avg_pct), y = avg_pct, fill = factor(year)), col = "YlOrBr") +
+  geom_bar(stat="identity", position = position_dodge2(preserve="single")) +
+  theme_light() + 
+  labs(x = "Stressor", 
+       y = "Average Colonies Affected by Stressor (%)",
+       fill = "Year",
+       caption = "Data source: USDA",
+       subtitle = "Average percentage of different stressors affecting bee colonies compared by year") + 
+  ggtitle("Stressors Affecting Bee Colonies by Year") + 
+  theme(plot.title = element_text(size = 18),
+        panel.background = element_rect(colour = "gold1", linewidth =  5)) + 
+  scale_fill_manual(values=c('#fee391', 'gold1', '#fe9929', '#CFACA2', '#B38072', '#955746', 'black'))
+```
+
+**Figure 2:** This bar graph demonstrates the average number of colonies affected by a given stressor over 7 years. The graph retains the categories of "unknown" and "other" to demonstrate that there is research that needs to be done in these areas, but also shows that diseases are even less prominent than these causes. The takeaway message here is that Varroa mites are the largest stressor on bee colonies in the US. 
+
+
+## 04 Data visualisation #3
+
+```{r DV3, echo = FALSE}
+## Remove unknown values and US from the reno variable
+colony_tree <- filter(colony, colony_reno != "NA")
+colony_tree2 <- filter(colony_tree, state != "United States")
+
+## Data wrangle
+colony_tree_agg <- colony_tree2 %>% group_by(year, state) %>% summarise(reno_mean = mean(colony_reno))
+
+## Change "year" into a factor
+colony_tree_agg$year <- factor(colony_tree_agg$year)
+
+## Create treemap
+tree <- treemap(colony_tree_agg,
+          index = c("year","state"),
+          vSize = "reno_mean",
+          vColor = "reno_mean",
+          type = "value",
+          palette = "YlOrBr",
+          title = "Bee Colonies Renovated by Year and State",
+          title.legend = "Mean Colonies Renovated"
+        )
+```
+
+**Figure 3:** This tree map gives an insight into which states are renovating bee colonies and when this has been occurring. It is apparent that California has renovated the most colonies each year, with a few other states floating around the top 5 mark. This data visualisation is most effective to pick out the largest squares and make an immediate impact in picking out the top 5, but it is not intended that the reader is then able to rank each state in order by judging if one square is marginally larger than its neighbour. 
+
+
+## 05 Data visualisation #4
+
+```{r DV4, echo = FALSE}
+## Data wrangle to get each state's maximum per year
+colony_strip <- filter(colony, state != "United States")
+colony_strip2 <- suppressWarnings({colony_strip %>% group_by(year, state) %>% summarise(c_max = max(colony_max, na.rm = TRUE) )})
+
+## Data wrangle to get the overall average max per year (states averaged)
+colony_strip_maxavg <- colony_strip2 %>% group_by(state) %>% summarise(c_max_avg = mean(c_max)) 
+
+## Create interaction plot using base R
+interaction.plot(response = colony_strip2$c_max,
+                 main = "Maximum Number of Colonies By State",
+                 cex = 1.5, 
+                 x.factor = colony_strip2$year, 
+                 trace.factor = colony_strip2$state,
+                 col = factor(colony_strip2$state),
+                 legend = FALSE, lty = 1, xlab = "Year",
+                 ylab = "Number of Colonies",
+                 type = "p",
+                 pch = 18,
+                 las = 3)
+## Add coloured border to match other graphs
+box(col = "gold1", lwd = 5)
+```
+
+**Figure 4:** Having previously seen how many colonies were being added and subtracted, we can now use this interaction plot to get an overall picture of how many colonies there are. This graph does not have a legend, as the goal is not to match each colour to its state, but the takeaway message here is that there is one state that has an overwhelmingly higher number of colonies compared to the other states, and this higher number is consistent from the year 2015 up to 2021. The graph was created using base R. 
+
+
+## 06 Data visualisation #5
+
+```{r DV5, echo = FALSE}
+## This function uses the colony_strip_maxavg dataframe which was created in the previous code chunk
+## Create coloured map of the US
+plot_usmap(data = colony_strip_maxavg, values = "c_max_avg", color = "black") +
+  scale_fill_continuous(
+    low = "gold1", high = "#f03b20",
+    name = "Max. Colonies", label = scales::comma) +
+  theme(legend.position = "right") +
+  labs(title = "Maximum Bee Colonies by State",
+       subtitle = "Average Maximum Bee Colonies Across 7-Year Period") +
+  theme(plot.title = element_text(size = 18),
+        panel.background = element_rect(colour = "gold1", linewidth = 5, fill = "white"))
+
+```
+
+**Figure 5:** A chloropleth map of the US shows that averaged across 7 years, California has the highest number of bee colonies compared to all the other states. Since no other states are showing any red, this is consistent with the large difference of California and other states in the previous figure. Texas, North Dakota and Florida would be the next highest numbers, which is also consistent with the renovation numbers shown in the previous tree map. 
+
+
+## 07 Data visualisation #6
+
+```{r DV6, echo = FALSE}
+## Remove NA values
+colony_shiny <- na.omit(colony)
+## Data wrangling
+colony_shiny2 <- colony_shiny %>% group_by(year, state) %>% summarise(col_max = mean(colony_max))
+## Create wide data format for app to read from
+colony_wide <- spread(colony_shiny2, state, col_max)
+## Turn 'year' column into row names
+colony_wide2 <- colony_wide %>% remove_rownames %>% column_to_rownames(var="year")
+## Make dataframe into matrix
+colony_wide3 <- data.matrix(colony_wide2)
+
+## When running alone, needs to have own directory 
+#setwd("C:/Users/vanil/OneDrive/Documents/RStudio/Shiny1")
+#getwd()
+## Code Shiny app
+#Part 1
+ui <- fluidPage(
+
+  titlePanel("Bee Colonies"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("state", "State:",
+                  choices = colnames(colony_wide3)),
+      hr(),
+      helpText("Data Source: USDA"),
+    ),
+    mainPanel(
+      plotOutput("colonyPlot")
+        )
+  )
+)
+#Part 2
+server <- function(input, output) {
+  output$colonyPlot <- renderPlot({
+    barplot(colony_wide3[,input$state],
+            main = input$state,
+            ylab = "Bee Colonies",
+            xlab = "Year",
+            col = "gold1")
+  })
+}
+# Part 3
+shinyApp(ui = ui, server = server)
+
+
+## Use this when running alone in directory 
+#runApp("my_app")
+
+```
+
+**Figure 6:** This interactive data visualisation expands on the previous graph and allows the user to choose a state and see the
+maximum number of colonies for each year from 2015 to 2021 on the barplot. This is an excellent way to display a large dataset containing 7 years and 50 states, which would be too much data to show individually on a graph and would become illegible. The app uses Shiny to create an interactive interface. 
+
+
+## 08 Graph Critique
+
+**Good Graph**
+Figure 7: Please see annotated graph in the Appendix. 
+The graph shows an example of a good data visualisation which demonstrates a set of data in a manner that is easy to read and follow what the author is trying to convey. The bars in the barplot allow the reader to understand the proportions that are being expressed without having to guess. The use of a rotated barplot allows easy reading of the land use titles. The figures are expressed as percentages and actual land areas which makes the data easier to interpret. Some of the boxes that are not of interest or are not the goal of demonstration are grouped as a grey colour. This is effective as it draws the reader’s eye to the coloured boxes which are relevant here, and the author has not tried to over-complicate the graphic by using too much colour coding. The colours towards the bottom are coded to show green as crop production and red for livestock production, but the green on the third line from the top, is only a slightly different green while it represents all agriculture and not crop production, the similarities between the greens could be misleading. The graphic is explained with a descriptive title and subtitle. A good addition would be if the 71% ocean box could be to scale with the 29% of land use. This would need to be done in a way not to make the last two lines become very small and illegible, but having this box at full scale against the land would give a strong impression of the percentage of agricultural land use against all the surface of the earth. 
+
+**Bad Graph**
+Figure 8: Please see annotated graph in the Appendix. 
+This barplot is an example of a bad data visualisation which needs alterations to make the information more easily available to the reader. The three dimensional aspect of the graph can be removed as it adds no positive effect. The shading adds confusion as the reader is not sure if they should be interpreting the line between the white and blue as a value in itself or not, which in this case is not showing any extra data and should be removed to become one solid colour. The y-axis is properly labelled, but it is difficult to compare the bars against the scale and obtain an actual value. Removing the 3D aspect will help this problem, but grid lines could be added at the major intervals to assist the reader in placing a bar’s height against the scale. The maximum point of the axis could be brought down slightly as there is some space at the top of the graph that is wasted. If the bars could be zoomed in on, perhaps better differentiation of the first three bars would be possible. 
+The labels on the x-axis are sufficient, and only writing every other year avoids clutter on the x-axis. The graphic has no title or subtitle, so while one can tell it is related to publications, it cannot be known publications of which subject. The use of a barplot could also be questioned, as the trend of increasing could be shown with a line graph using points and connecting lines. 
+
+
+
+
+## 09 References
+Kudr, J., Skalickova, S., Nejdl, L., Moulick, A., Ruttkay-Nedecky, B., Adam, V., Kizek, R. (2015). Fabrication of solid-state nanopores and its perspectives. ELECTROPHORESIS, 36(19), 2367–2379. https://doi.org/10.1002/elps.201400612
+
+Ritchie, H. and Roser, M. (2013) Land use, Our World in Data. Available at: https://ourworldindata.org/land-use (Accessed: March 9, 2023). 
+
+Wilke, C. O. (2020). Fundamentals of data visualization a primer on making informative and compelling figures. O'Reilly. Retrieved from https://clauswilke.com/dataviz/. 
+
+
+
+
+## 10 Appendix
+
+``` {r, echo = FALSE}
+knitr::include_graphics("~/RStudio/Good_graph_annotated.png")
+```
+**Figure 7**
+``` {r, echo = FALSE}
+
+knitr::include_graphics("~/RStudio/Bad_graph_annotated.png")
+```
+**Figure 8**
+
+
